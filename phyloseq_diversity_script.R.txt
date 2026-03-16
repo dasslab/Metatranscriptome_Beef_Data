@@ -1,0 +1,55 @@
+library(phyloseq)
+library(ggplot2)
+library(dplyr)
+library(vegan)
+library(ape)
+library(viridis)
+library(tidyr)
+library(scales)
+library(RColorBrewer)
+library(microshades)
+
+otu_mat <- read.csv("otu_table.csv", check.names = FALSE, row.names = 1)
+tax_mat <- read.csv("taxonomy.csv", check.names = FALSE)
+samples_df <- read.csv("metadata.csv", check.names = FALSE)
+samples_df$Year <- as.factor(samples_df$Year)
+row.names(tax_mat) <- tax_mat$otu
+tax_mat <- tax_mat %>% select (-otu)
+row.names(samples_df) <- samples_df$sample
+samples_df <- samples_df %>% select (-sample)
+otu_mat <- as.matrix(otu_mat)
+tax_mat <- as.matrix(tax_mat)
+OTU = otu_table(otu_mat, taxa_are_rows = TRUE)
+TAX = tax_table(tax_mat)
+samples = sample_data(samples_df)
+samples
+
+#Phyloseq Object
+ww <- phyloseq(OTU, TAX, samples)
+ww
+
+#Subset Genus
+ww_genus <- tax_glom(ww, taxrank = "Genus")
+#Plot Alpha - Manual Colors
+
+# Plot Alpha Diversity
+alpha <- plot_richness(ww_genus, x = "samples", color = "Year", shape = "Location", measures = c("Shannon")) +
+  ggtitle("Alpha Diversity") +
+  scale_color_manual(values = c("2019" = "darkorange2", "2021" = "dodgerblue3")) +
+  theme_bw() +
+  labs(x = "Sample", y = "Shannon Diversity Index") +
+  theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust = 0.5), legend.position = "none")
+
+# Save the plot
+ggsave("shannon_location_samples_orientation_changed.png", plot = alpha, height = 3, width = 5.5)
+
+# Plot Alpha Diversity
+alpha <- plot_richness(ww_genus, x = "samples", color = "Year", shape = "Location", measures = c("Shannon")) +
+  ggtitle("Alpha Diversity") +
+  scale_color_manual(values = c("2019" = "darkorange2", "2021" = "dodgerblue3")) +
+  theme_bw() +
+  labs(x = "Sample", y = "Shannon Diversity Index") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5), legend.position = "none")
+
+# Save the plot
+ggsave("shannon_location_samples.png", plot = alpha, height = 3, width = 4.5)

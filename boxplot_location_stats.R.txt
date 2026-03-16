@@ -1,0 +1,89 @@
+library(tidyverse)
+library(ggpubr)
+library(rstatix)
+
+df <- read.table(text = "
+Biofilm formation - P.aeruginosa\tBiofilm formation - V.cholerae\tBiofilm formation - E.coli\tDrain\tLocation
+84.627881\t148.956539\t167.072862\tA1-11B\tHotbox
+442.359577\t232.729369\t652.498152\tA1-7B\tCooler
+665.113853\t532.712495\t901.442238\tA2-10B\tCooler
+532.424583\t430.169838\t1001.500229\tA2-14B\tHotbox
+2045.326225\t693.790709\t2283.978232\tB1-10B\tHotbox
+467.279519\t219.762365\t588.332972\tB1-8B\tCooler
+356.968397\t644.123343\t613.548744\tB2-13B\tHotbox
+851.884922\t461.852069\t1008.973283\tB2-7B\tCooler
+178.349687\t640.985341\t443.353365\tC1-13B\tCooler
+2545.443376\t658.437170\t3168.139740\tC1-16B\tHotbox
+24.010799\t6002.644509\t5566.097563\tC1-17B\tHotbox
+1385.583642\t894.513505\t1525.078199\tC2-14B\tHotbox
+91.410817\t65.304351\t46.688804\tC2-9B\tCooler
+", header = TRUE, sep = "\t", check.names = FALSE)
+
+
+long_df <- df %>%
+    pivot_longer(
+        cols = starts_with("Biofilm formation"),
+        names_to = "Species",
+        values_to = "Expression"
+    ) %>%
+    mutate(
+        Species = recode(Species,
+                         "Biofilm formation - P.aeruginosa" = "P. aeruginosa",
+                         "Biofilm formation - V.cholerae"   = "V. cholerae",
+                         "Biofilm formation - E.coli"       = "E. coli"
+        ),
+        Species = factor(Species, levels = c("P. aeruginosa", "V. cholerae", "E. coli")),
+        Location = factor(Location, levels = c("Cooler", "Hotbox"))
+    )
+
+
+pvals <- long_df %>%
+    group_by(Species) %>%
+    wilcox_test(Expression ~ Location, detailed = TRUE) %>%
+    mutate(
+        p_label = rstatix::p_format(p, digits = 3),
+        group1 = "Cooler", group2 = "Hotbox"
+    ) %>%
+    left_join(
+        long_df %>%
+            group_by(Species) %>%
+            summarise(y.position = max(Expression) * 1.08),
+        by = "Species"
+    )
+
+
+italic_labeller <- as_labeller(
+    c("P. aeruginosa" = "italic('P. aeruginosa')",
+      "V. cholerae"   = "italic('V. cholerae')",
+      "E. coli"       = "italic('E. coli')"),
+    default = label_parsed
+)
+
+
+loc_colors <- c("Cooler" = "#1f78b4", "Hotbox" = "#e31a1c")
+
+p <- ggplot(long_df, aes(x = Location, y = Expression, fill = Location)) +
+    geom_boxplot(width = 0.65, alpha = 0.9, color = "black", outlier.shape = 21) +
+    geom_jitter(width = 0.1, size = 2, alpha = 0.7) +
+    scale_fill_manual(values = loc_colors) +
+    facet_wrap(~ Species, ncol = 3, scales = "free_y",
+               labeller = italic_labeller) +        # <-- italic strip labels
+    labs(title = "KEGG - Biofilm Formation (Cooler vs Hotbox)",
+         x = NULL, y = "Expression (TPM)") +
+    theme_classic(base_size = 14) +
+    theme(
+        legend.position  = "none",
+        strip.text       = element_text(size = 13, face = "italic"),  # <-- italic font
+        plot.title       = element_text(hjust = 0.5, face = "bold", size = 16)
+    ) +
+    ggpubr::stat_pvalue_manual(
+        data         = pvals,
+        label        = "p_label",
+        xmin         = "group1", xmax = "group2",
+        y.position   = "y.position",
+        tip.length   = 0.01, bracket.size = 0.5,
+        inherit.aes  = FALSE
+    )
+
+print(p)
+ggsave("biofilm_boxplot.png", p, width = 9, height = 5.5, dpi = 300)

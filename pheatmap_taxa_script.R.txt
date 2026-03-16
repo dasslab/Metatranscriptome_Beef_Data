@@ -1,0 +1,100 @@
+
+library(pheatmap)
+library(dplyr)
+
+
+df <- read.csv("taxa_abund_samples_years_locations.csv", check.names = FALSE)
+
+
+taxa_cols <- c("Acinetobacter", "Arthrobacter", "Brochothrix",
+               "Carnobacterium", "Lactococcus", "Pseudomonas",
+               "Rahnella", "Vibrio", "Yersinia", "Not_Assigned", "Others")
+
+rownames(df) <- df$sample
+mat <- t(as.matrix(df[, taxa_cols]))
+class(mat) <- "numeric"
+
+
+sample_order <- c("A1-11B","A1-7B","A2-10B","A2-14B",
+                  "B1-10B","B1-8B","B2-13B","B2-7B",
+                  "C1-13B","C1-16B","C1-17B","C2-14B","C2-9B",
+                  "D-11B","D-9B","E-29B","E-33B",
+                  "F-11B","F-15B","G1-12B","G1-9B",
+                  "G2-10B","G2-7B","G3-10B","G3-7B",
+                  "I-12B","I-9B","J-10B","J-14B")
+
+mat <- mat[, sample_order]
+
+plain_taxa <- c("Not_Assigned", "Others")
+
+row_labels <- sapply(rownames(mat), function(x) {
+    if (x %in% plain_taxa) {
+        gsub("_", " ", x)
+    } else {
+        x
+    }
+})
+
+row_label_expr <- sapply(rownames(mat), function(x) {
+    if (x %in% plain_taxa) {
+        as.expression(bquote(.(gsub("_", " ", x))))
+    } else {
+        as.expression(bquote(italic(.(x))))
+    }
+})
+
+meta <- df %>%
+    select(sample, Year, Location) %>%
+    distinct() %>%
+    filter(sample %in% sample_order) %>%
+    arrange(match(sample, sample_order))
+
+annotation_col <- data.frame(
+    Year     = meta$Year,
+    Location = meta$Location,
+    row.names = meta$sample
+)
+
+annotation_colors <- list(
+    Year     = c("Year-2019" = "#FFD700", "Year-2021" = "#FFB6C1"),
+    Location = c("Cooler" = "green",      "Hotbox"    = "black")
+)
+
+
+heatmap_colors <- colorRampPalette(c("#DEEBF7", "#9ECAE1", "#4292C6",
+                                     "#08519C", "#FFD700", "#FF8C00",
+                                     "#E63946"))(100)
+
+
+display_numbers <- matrix(
+    sprintf("%.3f", mat),
+    nrow = nrow(mat),
+    ncol = ncol(mat),
+    dimnames = dimnames(mat)
+)
+
+png("heatmap_taxa.png", width = 4400, height = 1800, res = 300)
+
+pheatmap(
+    mat,
+    color             = heatmap_colors,
+    cluster_rows      = FALSE,
+    cluster_cols      = FALSE,
+    annotation_col    = annotation_col,
+    annotation_colors = annotation_colors,
+    display_numbers   = display_numbers,
+    number_color      = "black",
+    fontsize_number   = 7.5,
+    fontsize_row      = 9,
+    fontsize_col      = 8,
+    angle_col         = "270",          # x-axis labels vertical
+    labels_row        = row_label_expr, # italic genus names
+    border_color      = "white",
+    cellwidth         = 28,
+    cellheight        = 28,
+    legend_breaks     = seq(0, 1, by = 0.2),
+    legend_labels     = seq(0, 1, by = 0.2),
+    main              = ""
+)
+
+dev.off()

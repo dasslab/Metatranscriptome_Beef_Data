@@ -1,7 +1,7 @@
 This repository contains all the scripts used in the following article
 
 
-Deciphering Microbial Transcriptional Dynamics through Metatranscriptomics of Floor-Drain-Derived Biofilm Models in Beef-Processing Facilities
+Microbial Transcriptional Dynamics of Beef-Processing Drain Biofilm Models Revealed by Enrichment-Based Metatranscriptomics
 Vignesh Palanisamy1 , Joseph M. Bosilevac2, Rong Wang2 , and Sapna Chitlapilly Dass1*
 
 
